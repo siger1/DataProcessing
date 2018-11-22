@@ -1,0 +1,163 @@
+//
+//Name: Siger de Vries
+//Student number: 10289321
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Gemiddelde temperatuur Nederland</title>
+</head>
+<body>
+    <canvas id="myCanvas"  width = "700" height = "400"></canvas>
+    <script>
+
+        var fileName = "output.json";
+        var txtFile = new XMLHttpRequest();
+        txtFile.onreadystatechange = function() {
+            if (txtFile.readyState === 4 && txtFile.status == 200) {
+                console.log(JSON.parse(txtFile.responseText));
+                var arrays = txtFile.response.substring(txtFile.response.indexOf("20170101"),txtFile.response.indexOf("20171231")).split(',[');
+                var dataframe = [];
+
+                for (var i = 0; i < arrays.length; i++) {
+                    dataframe.push(new line(arrays[i].substring(0, 8), arrays[i].substring(9, 11)));
+                }
+
+                var canvas = document.getElementById('myCanvas');
+                var ctx = canvas.getContext('2d');
+
+                // canvas sets
+                var offsetYHorizontal = 60;
+                var offsetYVertical = offsetYHorizontal;
+                var offsetXHorizontal = 60;
+                var offsetXVertical = 350;
+                var offsetLabelX = 370;
+                var offsetLabelY = 50;
+
+                // labels
+                var months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug",
+                                "Sep", "Oct", "Nov", "Dec"];
+                var year = dataframe[0].datum.getFullYear();
+                var title = `Gemiddelde temperatuur Nederland (2017)`;
+                var labelx = "Maand";
+
+                // convert all dates to days past since the start of the data set
+                var minutes = 1000 * 60;
+                var hours = minutes * 60;
+                var days = hours * 24;
+                var start = dataframe[0].datum.getTime();
+                for (var i = 0; i < dataframe.length; i++){
+                    dataframe[i].datum = ((dataframe[i].datum.getTime())- start) / days;
+                }
+                //console.log(dataframe[2])
+                // min and max temperature found in dataset, computed with python in the convert to json file
+                var max = 29.5;
+                var min = -12.3;
+
+                // determine lower and upper screen/data bounds for x and y axis
+                var step = 5;
+                var upperScreenBoundY = 50;
+                var lowerScreenBoundY = canvas.height - upperScreenBoundY;
+                var lowerDataBoundY = min;
+                var upperDataBoundY =max;
+                var lowerScreenBoundX = upperScreenBoundY + 10;
+                var upperScreenBoundX = 600;
+                var labelCounter = upperDataBoundY - step;
+
+                // domain, range for x and y axis
+                var domainY = [lowerDataBoundY, upperDataBoundY];
+                var rangeY = [lowerScreenBoundY, upperScreenBoundY];
+                var domainX = [dataframe[0].datum, 365];
+                var rangeX = [lowerScreenBoundX, upperScreenBoundX];
+                var transformy = createTransform(domainY, rangeY);
+                var transformx = createTransform(domainX, rangeX);
+
+                // title and x label
+                ctx.textAlign = 'center';
+                ctx.save();
+                ctx.fillText(title, offsetXVertical, 30);
+                ctx.fillText(labelx, offsetXVertical, 390);
+                ctx.restore();
+
+                // draw the y-axis
+                drawLine(ctx, offsetYHorizontal, offsetYVertical,
+                    offsetYHorizontal, lowerScreenBoundY);
+
+                // draw the hooks and labels for the y-axis
+                for(var i = offsetYVertical; i <= lowerScreenBoundY; i += 50){
+                    drawLine(ctx, offsetYHorizontal, i, offsetYHorizontal - 5, i);
+                    ctx.textAlign = 'right';
+                    ctx.fillText(labelCounter, offsetLabelY, i);
+                    labelCounter -= step;
+                }
+                ctx.textAlign = 'left';
+
+                // draw the x-axis
+                drawLine(ctx, offsetXHorizontal, offsetXVertical,
+                    upperScreenBoundX, offsetXVertical);
+
+                // draw the hooks and labels for the x-axis
+                for(var i = offsetXHorizontal, j = 0; i < upperScreenBoundX; i += 45, j++){
+                    drawLine(ctx, i, offsetXVertical, i, offsetXVertical + 5);
+                    ctx.fillText(months[j], i + 15, offsetLabelX);
+                }
+
+                //transform data
+                for (var i = 0; i < dataframe.length - 1; i++){
+                    x = transformx(dataframe[i].datum);
+                    y = transformy(dataframe[i].temperatuur);
+                    drawLine(ctx, x, y , transformx(dataframe[i + 1].datum),
+                    transformy(dataframe[i + 1].temperatuur));
+                }
+
+
+
+                }
+            }
+
+        txtFile.open("GET", fileName);
+        txtFile.send();
+
+
+        function line(datum, temperatuur){
+        this.datum = new Date(datum.slice(0, 4) + "-" + datum.slice(4, 6) + "-" + datum.slice(6, 8));
+        this.temperatuur = new Number(temperatuur/10);
+        }
+
+       // je gaat bij het tekenen van links boven naar rechts onder werken
+       //  je maakt een transform voor je x en y
+       //  met de max en min waardes en voor de max en min pixels (de range)
+
+        //function to draw a line
+        function drawLine(ctx, startX, startY, endX, endY){
+            ctx.save();
+            ctx.beginPath();
+            ctx.moveTo(startX,startY);
+            ctx.lineTo(endX,endY);
+            ctx.stroke();
+            ctx.restore();
+        }
+
+
+        function createTransform(domain, range){
+
+        var domain_min = domain[0]
+        var domain_max = domain[1]
+        var range_min = range[0]
+        var range_max = range[1]
+
+        // formulas to calculate the alpha and the beta
+        var alpha = (range_max - range_min) / (domain_max - domain_min)
+        var beta = range_max - alpha * domain_max
+
+        // returns the function for the linear transformation (y= a * x + b)
+        return function(x){
+          return alpha * x + beta;
+        }
+        }
+
+
+
+  </script>
+</body>
